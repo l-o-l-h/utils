@@ -1,5 +1,5 @@
 ;;; template-funcs.el -- Template Functions -*- mode: elisp; -*-
-;;; Time-stamp: <2024-02-19 12:05:30 minilolh>
+;;; Time-stamp: <2024-02-25 19:51:24 minilolh>
 
 ;;; Commentary:
 ;;; Provide functions for the denote-templates function.
@@ -45,11 +45,11 @@
    ":DEPT:\t--\n"
    ":PL-1:\t--\n"
    ":PL-2:\t--\n"
-   ":LL:\t\t--\n"
+   ":APRTMNT:\t\t--\n"
    ":DEF-1:\t--\n"
    ":DEF-2:\t--\n"
-   ":LEASE:\t-- EXHIBIT-1 # #\n"
-   ":NOTICE:\t-- EXHIBIT-2 # #\n"
+   ":LEASE:\t--\n"
+   ":NOTICE:\t--\n"
    ":SUMMONS:\t--\n"
    ":COMPLAINT:\t--\n"
    ":OSC-1:\t--\n"
@@ -58,15 +58,23 @@
    ":NOA:\t\t--\n"
    ":LEDGER:\t--\n"
    ":END:\n\n\n"
+
    "** OSC\n\n\n"
    "*** OSC-1\n\n\n"
    "*** OSC-2\n\n\n"
    "** DOCUMENTS\n\n\n"
    "*** COURT FILES\n\n\n"
-   "*** EXHIBITS\n\n\n"
+   "*** EXHIBITS\n"
+   ":PROPERTIES:\n"
+   ":LEASE:\t--\n"
+   ":NOTICE:\n--\n"
+   ":END:\n\n\n"
+
+   "*** LEDGERS\n"
+   ":PROPERTIES:\n"
+   ":END:\n\n\n"
+
    "* CLIENT\n\n\n"
-   "** CLIENT INFO\n\n\n"
-   "** CLIENT COMMUNICATION\n\n\n"
    "* O/C\n\n"
    "** O/C INFO\n\n\n"
    "** O/C COMMUNICATION\n\n\n"
@@ -78,19 +86,6 @@
    "sCase: \nsPlaintiff: \nsDefendants: \nsClient: \nsClient Info: ")
   (print (format "Case: %s  Plaintiff: %s  Defendants: %s  Client: %s  Info: %s"
                  case pl def cl info) (current-buffer)))
-
-(defun tinyurl ()
-  "Create a new Denote note with a TinyURL template."
-  (concat
-   "* TinyURL\n"
-   "\n"
-   "#+BEGIN_SRC http :pretty\n"
-   "  POST http://api.tinyurl.com/create\n"
-   "  Content-Type: application/json\n"
-   "  Authorization: Bearer <TOKEN>\n"
-   "\n"
-   "  {JSON}\n"
-   "#+END_SRC\n"))
 
 ;; Denote Last Name
 

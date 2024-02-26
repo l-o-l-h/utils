@@ -1,5 +1,5 @@
 ;;; extract.el -- Extract parts of a pdf into separate files -*- mode: elisp; -*-
-;;; Time-stamp: <2024-02-23 23:16:49 minilolh>
+;;; Time-stamp: <2024-02-26 00:57:48 minilolh>
 
 ;;; Commentary:
 ;; Given a pdf, such as complaint.pdf, extract the different parts,
@@ -32,7 +32,10 @@
 
 ;;; Code:
 
-(defvar *process* "~/Downloads/process")
+(defconst *process* "~/Downloads/process"
+  "The location at which documents are found to be processed.")
+
+(keymap-global-set "C-x p a" #'lolh/pdf-attach)
 
 (defun lolh/pdf-attach ()
   "Command to attach pdf files to the case note.
@@ -46,6 +49,12 @@
   check those first."
 
   (interactive)
+
+  (unless (and
+           (getenv "GOOGLE_DRIVE_2022")
+           (getenv "GOOGLE_DRIVE_2023")
+           (getenv "GOOGLE_DRIVE_2024"))
+    (error "Check that the google_drive environment variables are set properly"))
 
   ;; Put point in the main heading
   ;; Extract information from the Properties
@@ -71,10 +80,10 @@
                 (org-entry-get nil "DEF-1")
                 "--"))
 
-         ;; TODO: there might be more exhibits than just these two;
-         ;; refactor this code to get all of the exhibits.
-         (lease (lolh/find-exhibit-data "LEASE" (org-entry-get nil "LEASE")))
-         (notice (lolh/find-exhibit-data "NOTICE" (org-entry-get nil "NOTICE")))
+         ;; Get all exhibit data
+         (exhibit-data (lolh/find-all-exhibit-data))
+         ;;(lease (lolh/find-exhibit-data "LEASE" (org-entry-get nil "LEASE")))
+         ;;(notice (lolh/find-exhibit-data "NOTICE" (org-entry-get nil "NOTICE")))
 
          ;; Some constants
          (data "data")
@@ -123,7 +132,8 @@
     ;; Then, this function places the exhibits into the Google Drive next
     ;; to the Court Files, e.g., into the `Notices & Lease' directory.
     ;; TODO: refactor code to take into account more than 2 exhibits.
-    (lolh/extract-pdfs complaint-url cause-url (list lease notice))
+    ;; (lolh/extract-pdfs "complaint.pdf" complaint-url cause-url (list lease notice))
+    (lolh/extract-pdfs "complaint.pdf" complaint-url cause-url exhibit-data)
     ;; There needs to be a little delay to let the Google Drive sync
     ;; with the local drive
     (sit-for 3)
@@ -175,9 +185,16 @@ RETURN VALUE:
 
   TODO: Modify this to work for closed cases as well.  This will
   involve invoking error catching and trying again in the closed
-  directory."
+  directory.
+
+  NOTE: Environment variables must be set properly, as follows:
+  - GOOGLE_DRIVE_2022
+  - GOOGLE_DRIVE_2023
+  - GOOGLE_DRIVE_2024
+  - ETC."
 
   (interactive)
+
   ;; Place code here to verify integrity of `cause' variable.
   ;; Then extract the year, and the applicable Google Drive env var.
   (let* ((year (substring cause 0 2))
@@ -186,6 +203,52 @@ RETURN VALUE:
          (court-file (car (directory-files case-file t "Court File"))))
     ;; The directory portion of `court-file' is the `cause' url
     (file-name-as-directory court-file)))
+
+(defun lolh/find-all-exhibit-data ()
+  "Return a list of all exhibit data as a list of lists.
+
+  There must be a heading titled `EXHBITS' which contains a `Properties'
+  drawer.  The property node keys are the names of the exhibits, while
+  the property node values are the exhibit numbers and page numbers of
+  start and end pages.
+
+  EXAMPLE:
+
+  :PROPERTIES:
+  :LEASE: Exhibit-1 5 8
+  :NOTICE: Exhibit-2 9 9
+  :END
+
+  If the node data is not syntactically correct, the command will stop
+  with an error message.
+
+  The command can be started while point is anywhere inside the buffer.
+
+  RETURN VALUE:
+  -------------
+  LIST OF LISTS of the form ((key value beg end) (key value beg end) ...)"
+
+  (interactive)
+
+  (save-excursion
+    ;; Locate the * EXHIBITS heading
+    (goto-char (point-min))
+    (re-search-forward "\\* EXHIBITS")
+    ;; Locate the Properties drawer and then go forward one line into the nodes
+    (while (not (looking-at-p org-element-drawer-re))
+      (forward-line))
+    (forward-line)
+    ;; Collect all of the node properties and values into a list `return-val'
+    (let (return-val)
+      (while (not (looking-at-p org-element-drawer-re))
+        (if (re-search-forward
+             ;; :KEY: EXHIBIT-# beg# end#
+             ":\\([[:alpha:]]+\\):[[:space:]]+\\(EXHIBIT-[[:alnum:]]\\{1,\\}\\)[[:space:]]+\\([[:digit:]]+\\)[[:space:]]+\\([[:digit:]]+\\)"
+             (pos-eol) t)
+            (push (list (match-string-no-properties 1) (match-string-no-properties 2) (match-string-no-properties 3) (match-string-no-properties 4)) return-val)
+          (error "There was an error parsing Exhibit data: %s" (thing-at-point 'line t)))
+        (forward-line))
+      return-val)))
 
 (defun lolh/find-exhibit-data (name str)
   "Command to return data about the EXHIBITs found in the Properties.
@@ -208,24 +271,26 @@ RETURN VALUE:
          in the PDF."
 
   (interactive)
+
   (string-match "-- \\(EXHIBIT-[[:alnum:]]\\{1,\\}\\) \\([[:digit:]]+\\) \\([[:digit:]]+\\)" str)
   (list name (match-string 1 str) (match-string 2 str) (match-string 3 str)))
 
-(defun lolh/extract-pdfs (complaint-url cause-url exhibits)
+(defun lolh/extract-pdfs (name name-url cause-url exhibits)
   "Command to extract pdf exhibits out of a complaint.
 
   If successful, then the extracted exhibits will be in the Google
   Drive and can be attached next.
 
   INPUTS:
-  - COMPLAINT-URL: a url pointing to the location of the complaint.
+  - NAME: a string, the name of the document to be processed; eg. complaint.pdf.
+  - NAME-URL: a url pointing to the location of the document to be processed.
   - CAUSE-URL; a url pointing to the top of the Google Drive directory
-    for this cause number.
+    for this cause number, e.g. `/GoogleDrive/.../24-2-99999-06 Plaintiff v. Defendant'.
   - EXHIBITS: an assoc-list of the form
-    `((NAME EXHIBIT-# BEG-# END-#) (...) ...)'
+    `((EXHIBIT EXHIBIT-# BEG-# END-#) (...) ...)'
 
   WHERE:
-  - NAME: a string representing the name of the exhibit.
+  - EXHIBIT: a string representing the name of the exhibit.
   - EXHIBIT-#: a string of the form EXHIBIT-1, EXHIBIT-2, etc.
   - BEG-#: a digit representing the beginning page number in the complaint
   - END-#: a digit representing the ending page number in the complaint.
@@ -233,10 +298,13 @@ RETURN VALUE:
   RETURN VALUE:
   The list of exhibits extracted and moved upon success."
 
-  ;; Copy the complaint into ~/Downloads/process/
+  (interactive)
+
+  ;; Copy the complaint into ~/Downloads/process/.
+  ;; Create this directory if it does not exist.
   (unless (file-exists-p *process*)
     (mkdir *process*))
-  (copy-file complaint-url (file-name-concat *process* "complaint.pdf" ) t)
+  (copy-file name-url (file-name-concat *process* name ) t)
 
   ;; Map over the exhibits data, extracting each part into the
   ;; ~/Downloads/process directory
@@ -255,8 +323,8 @@ RETURN VALUE:
     ;; PROBLEM: The process seems to happen too fast for the Google
     ;; files to be sync'ed into the local file system, so need to
     ;; create some delay.
-    (sleep-for 2)
-    (mapc (lambda (url) (rename-file url exhibits-file-url)) urls)))
+    ;; (sleep-for 2)
+    (mapc (lambda (url) (rename-file url exhibits-file-url 1)) urls)))
 
 (defun lolh/extract-pdf (exhibit-data)
   "Given a single list of exhibit data, use `pdftk' to extract the exhibit.
