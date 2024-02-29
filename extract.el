@@ -1,5 +1,5 @@
 ;;; extract.el -- Extract parts of a pdf into separate files -*- mode: elisp; -*-
-;;; Time-stamp: <2024-02-26 00:57:48 minilolh>
+;;; Time-stamp: <2024-02-27 15:39:55 minilolh>
 
 ;;; Commentary:
 ;; Given a pdf, such as complaint.pdf, extract the different parts,
@@ -71,7 +71,6 @@
          (cause (string-trim-left
                  (org-entry-get nil "CAUSE")
                  "-- "))
-
          ;; e.g. 2023
          (year (concat "20" (substring cause 0 2)))
 
@@ -98,8 +97,8 @@
          ;; Find the Court File url first
          ;; All of the pleadings as PDFs are inside
          (court-file-url (lolh/find-court-file-dir cause))
-         ;; Calculate its parent directory url, the root
 
+         ;; Calculate its parent directory url, the root
          (cause-url (file-name-parent-directory court-file-url))
 
          ;; Calculate the Exhibits directory url (Notices & Lease)
@@ -178,7 +177,7 @@ RETURN VALUE:
   `CLOSED': boolean that should be set to t if the case is a closed one.
 
   RETURN:
-  URL: represents the Google Drive path to the cause.
+  `URL': represents the Google Drive path to the cause.
 
   This command works only with active cases that have had their
   Google Drive case file set up prior to being called.

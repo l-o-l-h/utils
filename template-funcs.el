@@ -1,5 +1,5 @@
 ;;; template-funcs.el -- Template Functions -*- mode: elisp; -*-
-;;; Time-stamp: <2024-02-25 19:51:24 minilolh>
+;;; Time-stamp: <2024-02-27 21:15:04 minilolh>
 
 ;;; Commentary:
 ;;; Provide functions for the denote-templates function.
@@ -67,11 +67,14 @@
    "*** EXHIBITS\n"
    ":PROPERTIES:\n"
    ":LEASE:\t--\n"
-   ":NOTICE:\n--\n"
+   ":NOTICE:\t--\n"
+   ":SERVICE:\t--\n"
    ":END:\n\n\n"
 
    "*** LEDGERS\n"
    ":PROPERTIES:\n"
+   ":LEDGER-1:\t--[DATE]\n"
+   ":LEDGER-2:\t--[DATE]\n"
    ":END:\n\n\n"
 
    "* CLIENT\n\n\n"
